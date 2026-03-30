@@ -2,8 +2,15 @@
 name = "zenv"
 version = "0.1.0"
 edition = "2021"
-description = "Zero-config developer secret injection runtime"
+description = "Zero-config developer secret injection runtime with E2EE"
 license = "MIT"
+repository = "https://github.com/arvytechnolgies/zenv"
+homepage = "https://zeroconfig.netlify.app"
+documentation = "https://github.com/arvytechnolgies/zenv#readme"
+keywords = ["secrets", "security", "dotenv", "cli", "encryption"]
+categories = ["command-line-utilities", "cryptography"]
+readme = "README.md"
+authors = ["arvytechnolgies <contact@arvytechnolgies.com>"]
 
 [dependencies]
 anyhow = "1.0"
