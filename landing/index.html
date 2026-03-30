@@ -1,0 +1,1210 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>zenv — Zero-config developer secret injection runtime</title>
+<meta name="description" content="Your secrets deserve better than .env files. Zero-config secret injection. E2E encrypted. Sub-millisecond overhead.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;500;600;700;800&family=Outfit:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+
+:root{
+  --bg:#06060e;
+  --bg-raised:#0c0c1a;
+  --bg-card:#0f1022;
+  --green:#6ee7b7;
+  --green-bright:#34d399;
+  --green-glow:rgba(110,231,183,.12);
+  --cyan:#67e8f9;
+  --cyan-dim:#22d3ee;
+  --cyan-glow:rgba(103,232,249,.1);
+  --accent:#a78bfa;
+  --accent-bright:#c4b5fd;
+  --accent-glow:rgba(167,139,250,.12);
+  --amber:#fbbf24;
+  --text:#eeeef5;
+  --text-dim:#7c7c9a;
+  --text-mid:#a5a5c0;
+  --border:#1c1c35;
+  --border-bright:#2d2d50;
+  --red:#fb7185;
+  --yellow:#fde68a;
+  --font-mono:'JetBrains Mono',monospace;
+  --font-display:'Outfit',sans-serif;
+}
+
+html{scroll-behavior:smooth;font-size:16px}
+body{
+  background:var(--bg);
+  color:var(--text);
+  font-family:var(--font-mono);
+  line-height:1.7;
+  overflow-x:hidden;
+  -webkit-font-smoothing:antialiased;
+}
+
+/* ── Atmospheric gradient background ─────────── */
+body::before{
+  content:'';
+  position:fixed;
+  inset:0;
+  background:
+    radial-gradient(ellipse 80% 60% at 10% 0%,rgba(167,139,250,.07) 0%,transparent 50%),
+    radial-gradient(ellipse 60% 50% at 90% 20%,rgba(34,211,238,.05) 0%,transparent 50%),
+    radial-gradient(ellipse 70% 40% at 50% 100%,rgba(110,231,183,.04) 0%,transparent 50%),
+    linear-gradient(rgba(167,139,250,.02) 1px,transparent 1px),
+    linear-gradient(90deg,rgba(167,139,250,.02) 1px,transparent 1px);
+  background-size:100% 100%,100% 100%,100% 100%,60px 60px,60px 60px;
+  pointer-events:none;
+  z-index:0;
+}
+
+/* Subtle noise texture */
+body::after{
+  content:'';
+  position:fixed;
+  inset:0;
+  background-image:url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  opacity:.015;
+  pointer-events:none;
+  z-index:9999;
+}
+
+a{color:var(--green);text-decoration:none;transition:color .2s}
+a:hover{color:var(--cyan)}
+
+.container{max-width:1100px;margin:0 auto;padding:0 24px}
+
+/* ── Nav ────────────────────────────────────── */
+nav{
+  position:fixed;top:0;left:0;right:0;
+  z-index:100;
+  padding:18px 0;
+  background:rgba(6,6,14,.88);
+  backdrop-filter:blur(20px);
+  border-bottom:1px solid var(--border);
+}
+nav .container{display:flex;align-items:center;justify-content:space-between}
+.nav-logo{
+  font-family:var(--font-display);
+  font-weight:800;
+  font-size:1.4rem;
+  letter-spacing:-0.02em;
+  color:var(--green);
+  display:flex;align-items:center;gap:8px;
+}
+.nav-logo .dot{
+  width:8px;height:8px;
+  background:var(--accent);
+  border-radius:50%;
+  box-shadow:0 0 12px var(--accent),0 0 24px rgba(167,139,250,.35);
+  animation:pulse-dot 2.5s ease-in-out infinite;
+}
+@keyframes pulse-dot{
+  0%,100%{opacity:1;box-shadow:0 0 12px var(--accent),0 0 24px rgba(167,139,250,.35)}
+  50%{opacity:.5;box-shadow:0 0 6px var(--accent),0 0 12px rgba(167,139,250,.15)}
+}
+.nav-links{display:flex;gap:28px;align-items:center}
+.nav-links a{
+  font-size:.8rem;
+  color:var(--text-dim);
+  letter-spacing:.05em;
+  text-transform:uppercase;
+  transition:color .2s;
+}
+.nav-links a:hover{color:var(--green)}
+.nav-cta{
+  font-size:.8rem;
+  padding:8px 18px;
+  background:var(--green);
+  color:var(--bg);
+  border-radius:6px;
+  font-weight:600;
+  letter-spacing:.02em;
+  transition:all .2s;
+}
+.nav-cta:hover{
+  background:#fff;
+  color:var(--bg);
+  box-shadow:0 0 24px rgba(167,139,250,.35);
+}
+
+/* ── Hero ───────────────────────────────────── */
+.hero{
+  min-height:100vh;
+  display:flex;
+  align-items:center;
+  position:relative;
+  padding-top:80px;
+}
+.hero-content{
+  position:relative;
+  z-index:2;
+  max-width:800px;
+}
+.hero-badge{
+  display:inline-flex;
+  align-items:center;
+  gap:8px;
+  padding:6px 16px;
+  border:1px solid var(--border-bright);
+  border-radius:100px;
+  font-size:.72rem;
+  color:var(--text-dim);
+  letter-spacing:.06em;
+  text-transform:uppercase;
+  margin-bottom:32px;
+  background:rgba(167,139,250,.06);
+}
+.hero-badge .badge-dot{
+  width:6px;height:6px;
+  background:var(--accent);
+  border-radius:50%;
+  animation:pulse-dot 2.5s ease-in-out infinite;
+}
+h1{
+  font-family:var(--font-display);
+  font-size:clamp(2.8rem,6vw,4.5rem);
+  font-weight:900;
+  line-height:1.05;
+  letter-spacing:-0.03em;
+  margin-bottom:24px;
+}
+h1 .accent{
+  background:linear-gradient(135deg,var(--green-bright),var(--cyan),var(--accent));
+  -webkit-background-clip:text;
+  background-clip:text;
+  -webkit-text-fill-color:transparent;
+}
+.hero-sub{
+  font-size:1.05rem;
+  color:var(--text-mid);
+  line-height:1.8;
+  margin-bottom:40px;
+  max-width:580px;
+  font-weight:300;
+}
+.hero-sub strong{color:var(--text);font-weight:500}
+
+.hero-actions{display:flex;gap:16px;flex-wrap:wrap;align-items:center}
+.btn-primary{
+  display:inline-flex;align-items:center;gap:8px;
+  padding:14px 28px;
+  background:linear-gradient(135deg,var(--accent),#818cf8);
+  color:#fff;
+  font-family:var(--font-mono);
+  font-size:.85rem;
+  font-weight:600;
+  border-radius:8px;
+  border:none;
+  cursor:pointer;
+  transition:all .25s;
+  letter-spacing:.01em;
+}
+.btn-primary:hover{
+  background:linear-gradient(135deg,var(--accent-bright),#a5b4fc);
+  box-shadow:0 0 30px rgba(167,139,250,.3),0 4px 20px rgba(0,0,0,.3);
+  transform:translateY(-1px);
+  color:#fff;
+}
+.btn-secondary{
+  display:inline-flex;align-items:center;gap:8px;
+  padding:14px 28px;
+  background:rgba(167,139,250,.06);
+  color:var(--text);
+  font-family:var(--font-mono);
+  font-size:.85rem;
+  font-weight:400;
+  border-radius:8px;
+  border:1px solid var(--border-bright);
+  cursor:pointer;
+  transition:all .25s;
+}
+.btn-secondary:hover{
+  border-color:var(--accent);
+  color:var(--accent-bright);
+  box-shadow:0 0 20px rgba(167,139,250,.1);
+  background:rgba(167,139,250,.1);
+}
+
+/* Hero glow */
+.hero-glow{
+  position:absolute;
+  width:600px;height:600px;
+  top:-100px;right:-200px;
+  background:radial-gradient(circle,rgba(167,139,250,.1) 0%,rgba(34,211,238,.05) 40%,transparent 70%);
+  pointer-events:none;
+  z-index:1;
+  animation:glow-drift 8s ease-in-out infinite alternate;
+}
+@keyframes glow-drift{
+  0%{transform:translate(0,0) scale(1)}
+  100%{transform:translate(-40px,30px) scale(1.1)}
+}
+
+/* ── Section base ───────────────────────────── */
+section{padding:120px 0;position:relative;z-index:2}
+.section-label{
+  font-size:.7rem;
+  letter-spacing:.15em;
+  text-transform:uppercase;
+  color:var(--accent);
+  margin-bottom:16px;
+  display:flex;align-items:center;gap:10px;
+}
+.section-label::before{
+  content:'';
+  width:24px;height:1px;
+  background:var(--accent);
+}
+.section-title{
+  font-family:var(--font-display);
+  font-size:clamp(2rem,4vw,3rem);
+  font-weight:800;
+  letter-spacing:-0.02em;
+  line-height:1.15;
+  margin-bottom:20px;
+}
+.section-desc{
+  color:var(--text-mid);
+  font-size:.9rem;
+  max-width:540px;
+  line-height:1.8;
+  font-weight:300;
+}
+
+/* ── Terminal Demo ──────────────────────────── */
+.terminal-section{
+  padding:100px 0;
+}
+.terminal{
+  background:#08080f;
+  border:1px solid var(--border-bright);
+  border-radius:12px;
+  overflow:hidden;
+  max-width:720px;
+  margin:0 auto;
+  box-shadow:
+    0 0 80px rgba(167,139,250,.06),
+    0 0 40px rgba(34,211,238,.04),
+    0 20px 60px rgba(0,0,0,.5),
+    inset 0 1px 0 rgba(255,255,255,.04);
+}
+.terminal-bar{
+  display:flex;
+  align-items:center;
+  gap:8px;
+  padding:14px 18px;
+  background:rgba(255,255,255,.02);
+  border-bottom:1px solid var(--border);
+}
+.terminal-dot{
+  width:11px;height:11px;
+  border-radius:50%;
+}
+.terminal-dot.r{background:#ff5f57}
+.terminal-dot.y{background:#febc2e}
+.terminal-dot.g{background:#28c840}
+.terminal-title{
+  flex:1;
+  text-align:center;
+  font-size:.7rem;
+  color:var(--text-dim);
+  letter-spacing:.04em;
+}
+.terminal-body{
+  padding:24px;
+  font-size:.82rem;
+  line-height:2;
+  min-height:280px;
+}
+.terminal-body .line{opacity:0;transform:translateY(4px);transition:all .4s ease}
+.terminal-body .line.visible{opacity:1;transform:translateY(0)}
+.t-prompt{color:var(--cyan)}
+.t-cmd{color:var(--text)}
+.t-flag{color:var(--yellow)}
+.t-success{color:var(--green)}
+.t-output{color:var(--text-dim)}
+.t-arg{color:#c792ea}
+.t-value{color:var(--text-dim)}
+.t-cursor{
+  display:inline-block;
+  width:8px;height:16px;
+  background:var(--accent);
+  vertical-align:middle;
+  margin-left:2px;
+  animation:blink-cursor 1s step-end infinite;
+}
+@keyframes blink-cursor{0%,100%{opacity:1}50%{opacity:0}}
+
+/* ── Features Grid ──────────────────────────── */
+.features-grid{
+  display:grid;
+  grid-template-columns:repeat(auto-fit,minmax(320px,1fr));
+  gap:2px;
+  margin-top:60px;
+  background:var(--border);
+  border:1px solid var(--border);
+  border-radius:16px;
+  overflow:hidden;
+}
+.feature-card{
+  background:var(--bg-card);
+  padding:40px 36px;
+  position:relative;
+  transition:all .35s ease;
+  overflow:hidden;
+}
+.feature-card::before{
+  content:'';
+  position:absolute;
+  top:0;left:0;right:0;
+  height:1px;
+  background:linear-gradient(90deg,transparent,var(--accent),transparent);
+  opacity:0;
+  transition:opacity .35s;
+}
+.feature-card:hover{
+  background:var(--bg-raised);
+}
+.feature-card:hover::before{
+  opacity:1;
+}
+.feature-icon{
+  width:44px;height:44px;
+  display:flex;align-items:center;justify-content:center;
+  border-radius:10px;
+  margin-bottom:20px;
+  font-size:1.2rem;
+  border:1px solid var(--border-bright);
+  background:rgba(167,139,250,.06);
+  color:var(--accent);
+  transition:all .35s;
+}
+.feature-card:hover .feature-icon{
+  background:rgba(167,139,250,.14);
+  border-color:rgba(167,139,250,.35);
+  box-shadow:0 0 24px rgba(167,139,250,.12);
+}
+.feature-card h3{
+  font-family:var(--font-display);
+  font-size:1.15rem;
+  font-weight:700;
+  margin-bottom:10px;
+  letter-spacing:-0.01em;
+}
+.feature-card p{
+  color:var(--text-dim);
+  font-size:.78rem;
+  line-height:1.9;
+  font-weight:300;
+}
+.feature-card code{
+  background:rgba(110,231,183,.08);
+  color:var(--green);
+  padding:2px 7px;
+  border-radius:4px;
+  font-size:.72rem;
+  font-weight:500;
+  border:1px solid rgba(110,231,183,.1);
+}
+
+/* ── Case Studies ───────────────────────────── */
+.cases-grid{
+  display:grid;
+  grid-template-columns:repeat(3,1fr);
+  gap:24px;
+  margin-top:56px;
+}
+.case-card{
+  background:var(--bg-card);
+  border:1px solid var(--border);
+  border-radius:16px;
+  padding:36px 32px 32px;
+  position:relative;
+  transition:all .4s ease;
+  overflow:hidden;
+  display:flex;
+  flex-direction:column;
+}
+.case-card::before{
+  content:'';
+  position:absolute;
+  top:0;left:0;right:0;
+  height:3px;
+  border-radius:16px 16px 0 0;
+  transition:opacity .4s;
+}
+.case-card:nth-child(1)::before{background:linear-gradient(90deg,var(--green-bright),var(--cyan))}
+.case-card:nth-child(2)::before{background:linear-gradient(90deg,var(--accent),#818cf8)}
+.case-card:nth-child(3)::before{background:linear-gradient(90deg,var(--amber),var(--red))}
+.case-card:hover{
+  border-color:var(--border-bright);
+  transform:translateY(-4px);
+  box-shadow:0 20px 50px rgba(0,0,0,.3),0 0 40px rgba(167,139,250,.05);
+}
+.case-logo{
+  display:flex;align-items:center;gap:12px;
+  margin-bottom:20px;
+}
+.case-logo-icon{
+  width:42px;height:42px;
+  border-radius:10px;
+  display:flex;align-items:center;justify-content:center;
+  font-size:1.1rem;
+  font-weight:700;
+  flex-shrink:0;
+}
+.case-card:nth-child(1) .case-logo-icon{
+  background:rgba(52,211,153,.1);
+  color:var(--green-bright);
+  border:1px solid rgba(52,211,153,.2);
+}
+.case-card:nth-child(2) .case-logo-icon{
+  background:rgba(167,139,250,.1);
+  color:var(--accent);
+  border:1px solid rgba(167,139,250,.2);
+}
+.case-card:nth-child(3) .case-logo-icon{
+  background:rgba(251,191,36,.1);
+  color:var(--amber);
+  border:1px solid rgba(251,191,36,.2);
+}
+.case-company{
+  font-family:var(--font-display);
+  font-weight:700;
+  font-size:1rem;
+  letter-spacing:-0.01em;
+}
+.case-industry{
+  font-size:.68rem;
+  color:var(--text-dim);
+  letter-spacing:.03em;
+}
+.case-quote{
+  font-family:var(--font-display);
+  font-size:.95rem;
+  font-weight:400;
+  line-height:1.7;
+  color:var(--text);
+  margin-bottom:20px;
+  flex:1;
+  font-style:italic;
+}
+.case-quote::before{
+  content:'\201C';
+  font-size:2rem;
+  line-height:0;
+  vertical-align:-.3em;
+  margin-right:4px;
+  opacity:.3;
+}
+.case-metrics{
+  display:grid;
+  grid-template-columns:1fr 1fr;
+  gap:2px;
+  border-radius:10px;
+  overflow:hidden;
+  margin-bottom:20px;
+  background:var(--border);
+}
+.case-metric{
+  background:rgba(255,255,255,.02);
+  padding:14px 16px;
+  text-align:center;
+}
+.case-metric-value{
+  font-family:var(--font-display);
+  font-size:1.4rem;
+  font-weight:800;
+  line-height:1;
+  margin-bottom:4px;
+}
+.case-card:nth-child(1) .case-metric-value{color:var(--green-bright)}
+.case-card:nth-child(2) .case-metric-value{color:var(--accent)}
+.case-card:nth-child(3) .case-metric-value{color:var(--amber)}
+.case-metric-label{
+  font-size:.62rem;
+  color:var(--text-dim);
+  text-transform:uppercase;
+  letter-spacing:.08em;
+}
+.case-stack{
+  display:flex;
+  gap:6px;
+  flex-wrap:wrap;
+}
+.case-tag{
+  font-size:.62rem;
+  padding:3px 10px;
+  border-radius:100px;
+  background:rgba(255,255,255,.03);
+  border:1px solid var(--border);
+  color:var(--text-dim);
+  letter-spacing:.03em;
+}
+@media(max-width:768px){
+  .cases-grid{grid-template-columns:1fr}
+}
+
+/* ── Quickstart ─────────────────────────────── */
+.quickstart{
+  text-align:center;
+}
+.quickstart-block{
+  max-width:520px;
+  margin:48px auto 0;
+  background:#08080f;
+  border:1px solid var(--border-bright);
+  border-radius:12px;
+  overflow:hidden;
+  text-align:left;
+  box-shadow:0 0 60px rgba(167,139,250,.04),0 20px 40px rgba(0,0,0,.3);
+}
+.quickstart-header{
+  padding:14px 20px;
+  border-bottom:1px solid var(--border);
+  display:flex;align-items:center;justify-content:space-between;
+}
+.quickstart-header span{
+  font-size:.7rem;
+  color:var(--text-dim);
+  letter-spacing:.05em;
+  text-transform:uppercase;
+}
+.copy-btn{
+  background:none;border:1px solid var(--border-bright);
+  color:var(--text-dim);
+  font-family:var(--font-mono);
+  font-size:.68rem;
+  padding:4px 12px;
+  border-radius:4px;
+  cursor:pointer;
+  transition:all .2s;
+  letter-spacing:.03em;
+}
+.copy-btn:hover{border-color:var(--accent);color:var(--accent)}
+.copy-btn.copied{border-color:var(--green);color:var(--green)}
+.quickstart-code{
+  padding:24px;
+  font-size:.82rem;
+  line-height:2.2;
+}
+.quickstart-code .ln{color:var(--text-dim);user-select:none;display:inline-block;width:24px;text-align:right;margin-right:16px;font-size:.7rem}
+.quickstart-code .comment{color:#4a4a6a;font-style:italic}
+
+/* ── Architecture ───────────────────────────── */
+.arch-grid{
+  display:grid;
+  grid-template-columns:repeat(3,1fr);
+  gap:2px;
+  margin-top:48px;
+  background:var(--border);
+  border:1px solid var(--border);
+  border-radius:12px;
+  overflow:hidden;
+}
+.arch-item{
+  background:var(--bg-card);
+  padding:32px 28px;
+  text-align:center;
+  transition:background .3s;
+}
+.arch-item:hover{background:var(--bg-raised)}
+.arch-num{
+  font-family:var(--font-display);
+  font-size:2.4rem;
+  font-weight:900;
+  background:linear-gradient(135deg,var(--green-bright),var(--cyan),var(--accent));
+  -webkit-background-clip:text;
+  background-clip:text;
+  -webkit-text-fill-color:transparent;
+  line-height:1;
+  margin-bottom:8px;
+}
+.arch-label{
+  font-size:.7rem;
+  color:var(--text-dim);
+  text-transform:uppercase;
+  letter-spacing:.1em;
+}
+
+/* ── CTA ────────────────────────────────────── */
+.cta-section{
+  text-align:center;
+  padding:140px 0;
+  position:relative;
+}
+.cta-section::before{
+  content:'';
+  position:absolute;
+  top:50%;left:50%;
+  transform:translate(-50%,-50%);
+  width:800px;height:400px;
+  background:radial-gradient(ellipse,rgba(167,139,250,.08) 0%,rgba(34,211,238,.03) 40%,transparent 65%);
+  pointer-events:none;
+}
+.cta-title{
+  font-family:var(--font-display);
+  font-size:clamp(2rem,4vw,3.2rem);
+  font-weight:900;
+  letter-spacing:-0.03em;
+  margin-bottom:16px;
+  position:relative;
+}
+.cta-sub{
+  color:var(--text-mid);
+  font-size:.9rem;
+  margin-bottom:40px;
+  font-weight:300;
+}
+.cta-cmd{
+  display:inline-flex;
+  align-items:center;
+  gap:12px;
+  padding:16px 28px;
+  background:rgba(167,139,250,.08);
+  border:1px solid rgba(167,139,250,.25);
+  border-radius:10px;
+  font-size:.95rem;
+  color:var(--accent-bright);
+  font-weight:500;
+  cursor:pointer;
+  transition:all .25s;
+  position:relative;
+}
+.cta-cmd:hover{
+  background:rgba(167,139,250,.14);
+  border-color:rgba(167,139,250,.45);
+  box-shadow:0 0 40px rgba(167,139,250,.12);
+}
+.cta-cmd .dollar{color:var(--text-dim);font-weight:400}
+
+/* ── Footer ─────────────────────────────────── */
+footer{
+  border-top:1px solid var(--border);
+  padding:40px 0;
+  position:relative;
+  z-index:2;
+}
+footer .container{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  flex-wrap:wrap;
+  gap:16px;
+}
+.footer-left{display:flex;align-items:center;gap:20px}
+.footer-logo{
+  font-family:var(--font-display);
+  font-weight:700;
+  color:var(--text-dim);
+  font-size:.9rem;
+}
+.footer-sep{color:var(--border-bright)}
+.footer-text{
+  font-size:.72rem;
+  color:var(--text-dim);
+  letter-spacing:.02em;
+}
+.footer-right{display:flex;align-items:center;gap:20px}
+.footer-badge{
+  display:inline-flex;align-items:center;gap:6px;
+  padding:5px 12px;
+  border:1px solid var(--border-bright);
+  border-radius:100px;
+  font-size:.68rem;
+  color:var(--text-dim);
+  letter-spacing:.04em;
+}
+.footer-badge svg{width:14px;height:14px;fill:currentColor}
+.footer-links{display:flex;gap:18px}
+.footer-links a{
+  font-size:.72rem;
+  color:var(--text-dim);
+  letter-spacing:.03em;
+  transition:color .2s;
+}
+.footer-links a:hover{color:var(--green)}
+
+/* ── Scroll Reveal ──────────────────────────── */
+.reveal{
+  opacity:0;
+  transform:translateY(30px);
+  transition:opacity .7s ease,transform .7s ease;
+}
+.reveal.visible{
+  opacity:1;
+  transform:translateY(0);
+}
+.reveal-delay-1{transition-delay:.1s}
+.reveal-delay-2{transition-delay:.2s}
+.reveal-delay-3{transition-delay:.3s}
+.reveal-delay-4{transition-delay:.4s}
+.reveal-delay-5{transition-delay:.5s}
+
+/* ── Responsive ─────────────────────────────── */
+@media(max-width:768px){
+  .nav-links{display:none}
+  .features-grid{grid-template-columns:1fr}
+  .arch-grid{grid-template-columns:1fr}
+  .hero{padding-top:100px}
+  section{padding:80px 0}
+  .hero-actions{flex-direction:column;align-items:flex-start}
+  footer .container{flex-direction:column;align-items:flex-start}
+}
+@media(max-width:480px){
+  .container{padding:0 16px}
+  .terminal-body{padding:16px;font-size:.75rem}
+}
+
+/* ── Encrypted text shimmer ─────────────────── */
+.encrypted-text{
+  position:relative;
+  display:inline-block;
+}
+.encrypted-text::after{
+  content:'';
+  position:absolute;
+  top:0;left:-100%;
+  width:60%;height:100%;
+  background:linear-gradient(90deg,transparent,rgba(167,139,250,.1),transparent);
+  animation:shimmer 3s ease-in-out infinite;
+}
+@keyframes shimmer{
+  0%{left:-100%}
+  100%{left:200%}
+}
+</style>
+</head>
+<body>
+
+<!-- Nav -->
+<nav>
+  <div class="container">
+    <div class="nav-logo">
+      <span class="dot"></span>
+      zenv
+    </div>
+    <div class="nav-links">
+      <a href="#features">Features</a>
+      <a href="#demo">Demo</a>
+      <a href="#quickstart">Install</a>
+      <a href="https://github.com/user/zenv" class="nav-cta">GitHub</a>
+    </div>
+  </div>
+</nav>
+
+<!-- Hero -->
+<section class="hero">
+  <div class="container">
+    <div class="hero-content">
+      <div class="hero-badge reveal">
+        <span class="badge-dot"></span>
+        E2E Encrypted &middot; Zero Config &middot; Rust
+      </div>
+      <h1 class="reveal reveal-delay-1">
+        Your secrets deserve<br>better than <span class="accent">.env files</span>
+      </h1>
+      <p class="hero-sub reveal reveal-delay-2">
+        <strong>Zero-config secret injection.</strong> E2E encrypted.
+        Sub-millisecond overhead. Replace scattered .env files with a
+        single encrypted vault that injects secrets at runtime.
+      </p>
+      <div class="hero-actions reveal reveal-delay-3">
+        <a href="#quickstart" class="btn-primary">
+          <span>$</span> cargo install zenv
+        </a>
+        <a href="#demo" class="btn-secondary">
+          See it in action &darr;
+        </a>
+      </div>
+    </div>
+  </div>
+  <div class="hero-glow"></div>
+</section>
+
+<!-- Stats -->
+<section style="padding:40px 0 80px">
+  <div class="container">
+    <div class="arch-grid reveal">
+      <div class="arch-item">
+        <div class="arch-num">&lt;1ms</div>
+        <div class="arch-label">Injection Overhead</div>
+      </div>
+      <div class="arch-item">
+        <div class="arch-num">0</div>
+        <div class="arch-label">Plaintext on Server</div>
+      </div>
+      <div class="arch-item">
+        <div class="arch-num">256</div>
+        <div class="arch-label">Bit Encryption</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- Terminal Demo -->
+<section class="terminal-section" id="demo">
+  <div class="container">
+    <div style="text-align:center;margin-bottom:48px">
+      <div class="section-label reveal" style="justify-content:center">
+        <span>See it work</span>
+      </div>
+      <h2 class="section-title reveal reveal-delay-1">Three commands. That's it.</h2>
+      <p class="section-desc reveal reveal-delay-2" style="margin:0 auto">
+        Initialize, vault your secrets, run your app.
+        No config files. No environment juggling. No leaks.
+      </p>
+    </div>
+    <div class="terminal reveal reveal-delay-3" id="terminal-demo">
+      <div class="terminal-bar">
+        <div class="terminal-dot r"></div>
+        <div class="terminal-dot y"></div>
+        <div class="terminal-dot g"></div>
+        <div class="terminal-title">zenv &mdash; ~/projects/my-api</div>
+      </div>
+      <div class="terminal-body" id="terminal-lines">
+        <div class="line" data-delay="200"><span class="t-prompt">$</span> <span class="t-cmd">zenv</span> <span class="t-arg">init</span></div>
+        <div class="line" data-delay="700"><span class="t-success">✓</span> <span class="t-output">initialized project</span> <span class="t-cmd">my-api</span></div>
+        <div class="line" data-delay="400">&nbsp;</div>
+        <div class="line" data-delay="600"><span class="t-prompt">$</span> <span class="t-cmd">zenv</span> <span class="t-arg">vault add</span> <span class="t-flag">DATABASE_URL</span></div>
+        <div class="line" data-delay="500"><span class="t-output">Enter value:</span> <span class="t-value">••••••••••••••••••</span></div>
+        <div class="line" data-delay="600"><span class="t-success">✓</span> <span class="t-output">vaulted</span> <span class="t-flag">DATABASE_URL</span> <span class="t-output">in</span> <span class="t-success">development</span></div>
+        <div class="line" data-delay="400">&nbsp;</div>
+        <div class="line" data-delay="600"><span class="t-prompt">$</span> <span class="t-cmd">zenv</span> <span class="t-arg">run</span> <span class="t-value">--</span> <span class="t-cmd">npm start</span></div>
+        <div class="line" data-delay="800"><span class="t-output">&gt; Server running on port</span> <span class="t-success">3000</span> <span class="t-cursor"></span></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- Features -->
+<section id="features">
+  <div class="container">
+    <div class="section-label reveal">Features</div>
+    <h2 class="section-title reveal reveal-delay-1">
+      Security that gets out<br>of your way
+    </h2>
+    <p class="section-desc reveal reveal-delay-2">
+      Every feature exists to remove friction. Because the most secure workflow
+      is the one developers actually use.
+    </p>
+    <div class="features-grid">
+      <div class="feature-card reveal">
+        <div class="feature-icon">&rarr;</div>
+        <h3>Zero Friction</h3>
+        <p><code>zenv run -- npm start</code> replaces your entire .env workflow. True <code>exec()</code> on Unix means zero overhead after injection — zenv's memory is freed the instant your process starts.</p>
+      </div>
+      <div class="feature-card reveal reveal-delay-1">
+        <div class="feature-icon">&#9919;</div>
+        <h3>End-to-End Encrypted</h3>
+        <p>ChaCha20-Poly1305 with HKDF-SHA256 key derivation. Per-secret AAD prevents ciphertext substitution attacks. The OS keychain is the trust anchor — the server never touches plaintext.</p>
+      </div>
+      <div class="feature-card reveal reveal-delay-2">
+        <div class="feature-icon">&#8906;</div>
+        <h3>Secret Scanner</h3>
+        <p><code>zenv scan</code> walks your codebase detecting leaked credentials via vendor prefix matching, Shannon entropy analysis, and keyword heuristics. Catch leaks before they ship.</p>
+      </div>
+      <div class="feature-card reveal reveal-delay-3">
+        <div class="feature-icon">&#9002;</div>
+        <h3>Shell Integration</h3>
+        <p>Automatic secret loading on directory change for bash, zsh, and fish. Secrets appear when you <code>cd</code> into a project and vanish when you leave. Zero manual steps.</p>
+      </div>
+      <div class="feature-card reveal reveal-delay-4">
+        <div class="feature-icon">&#8645;</div>
+        <h3>Sync Anywhere</h3>
+        <p>Push secrets to Vercel, GitHub Actions, or AWS Secrets Manager with a single command. Diff before you push — see exactly what changes before anything goes live.</p>
+      </div>
+      <div class="feature-card reveal reveal-delay-5">
+        <div class="feature-icon">&#8634;</div>
+        <h3>Dynamic Credentials</h3>
+        <p>AWS STS, Stripe restricted keys — automatically issued, renewed, and revoked. Secrets that expire can't be leaked usefully. Never touch a static credential again.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- Case Studies -->
+<section id="cases">
+  <div class="container">
+    <div class="section-label reveal">Real Scenarios</div>
+    <h2 class="section-title reveal reveal-delay-1">
+      Teams shipping<br>without leaking
+    </h2>
+    <p class="section-desc reveal reveal-delay-2">
+      From early-stage startups to scaling platforms &mdash;
+      here's how teams eliminated secret sprawl with zenv.
+    </p>
+    <div class="cases-grid">
+
+      <!-- Case 1: The Fintech Team -->
+      <div class="case-card reveal">
+        <div class="case-logo">
+          <div class="case-logo-icon">&#9878;</div>
+          <div>
+            <div class="case-company">The Fintech Team</div>
+            <div class="case-industry">Payments &middot; 14 engineers</div>
+          </div>
+        </div>
+        <div class="case-quote">
+          Stripe keys lived in three .env files across staging, prod, and local. After a close call with a leaked test key in a PR, the team switched to zenv in an afternoon. Dynamic credentials rotate every hour &mdash; there's nothing static left to leak.
+        </div>
+        <div class="case-metrics">
+          <div class="case-metric">
+            <div class="case-metric-value">0</div>
+            <div class="case-metric-label">Secrets in Git</div>
+          </div>
+          <div class="case-metric">
+            <div class="case-metric-value">1hr</div>
+            <div class="case-metric-label">Key Rotation</div>
+          </div>
+          <div class="case-metric">
+            <div class="case-metric-value">14</div>
+            <div class="case-metric-label">Devs Onboarded</div>
+          </div>
+          <div class="case-metric">
+            <div class="case-metric-value">&lt;2ms</div>
+            <div class="case-metric-label">Startup Overhead</div>
+          </div>
+        </div>
+        <div class="case-stack">
+          <span class="case-tag">Node.js</span>
+          <span class="case-tag">Stripe</span>
+          <span class="case-tag">AWS</span>
+          <span class="case-tag">Vercel</span>
+        </div>
+      </div>
+
+      <!-- Case 2: The Platform Team -->
+      <div class="case-card reveal reveal-delay-1">
+        <div class="case-logo">
+          <div class="case-logo-icon">&#9881;</div>
+          <div>
+            <div class="case-company">The Platform Team</div>
+            <div class="case-industry">Infrastructure &middot; 200+ services</div>
+          </div>
+        </div>
+        <div class="case-quote">
+          Syncing secrets across 200+ microservices to GitHub Actions was manual and error-prone. One bad copy-paste took down staging for a day. With zenv, the team diffs and pushes from one command &mdash; the audit trail alone justified the switch.
+        </div>
+        <div class="case-metrics">
+          <div class="case-metric">
+            <div class="case-metric-value">200+</div>
+            <div class="case-metric-label">Services Secured</div>
+          </div>
+          <div class="case-metric">
+            <div class="case-metric-value">45min</div>
+            <div class="case-metric-label">Saved per Deploy</div>
+          </div>
+          <div class="case-metric">
+            <div class="case-metric-value">100%</div>
+            <div class="case-metric-label">Audit Coverage</div>
+          </div>
+          <div class="case-metric">
+            <div class="case-metric-value">1 cmd</div>
+            <div class="case-metric-label">To Sync All</div>
+          </div>
+        </div>
+        <div class="case-stack">
+          <span class="case-tag">Go</span>
+          <span class="case-tag">Kubernetes</span>
+          <span class="case-tag">GitHub Actions</span>
+          <span class="case-tag">Terraform</span>
+        </div>
+      </div>
+
+      <!-- Case 3: The Agency -->
+      <div class="case-card reveal reveal-delay-2">
+        <div class="case-logo">
+          <div class="case-logo-icon">&#9733;</div>
+          <div>
+            <div class="case-company">The Agency</div>
+            <div class="case-industry">Client work &middot; 8 active projects</div>
+          </div>
+        </div>
+        <div class="case-quote">
+          Client credentials were scattered across Slack DMs, shared vaults, and stale .env files. With zenv, each developer's machine has its own encrypted vault scoped per project. Shell hooks mean you just cd in and start coding &mdash; no credential handoff needed.
+        </div>
+        <div class="case-metrics">
+          <div class="case-metric">
+            <div class="case-metric-value">8</div>
+            <div class="case-metric-label">Projects Isolated</div>
+          </div>
+          <div class="case-metric">
+            <div class="case-metric-value">0</div>
+            <div class="case-metric-label">Shared Passwords</div>
+          </div>
+          <div class="case-metric">
+            <div class="case-metric-value">30s</div>
+            <div class="case-metric-label">New Dev Setup</div>
+          </div>
+          <div class="case-metric">
+            <div class="case-metric-value">E2EE</div>
+            <div class="case-metric-label">Client Isolation</div>
+          </div>
+        </div>
+        <div class="case-stack">
+          <span class="case-tag">Next.js</span>
+          <span class="case-tag">Python</span>
+          <span class="case-tag">Supabase</span>
+          <span class="case-tag">Vercel</span>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</section>
+
+<!-- Quickstart -->
+<section id="quickstart" class="quickstart">
+  <div class="container">
+    <div class="section-label reveal" style="justify-content:center">
+      <span>Get Started</span>
+    </div>
+    <h2 class="section-title reveal reveal-delay-1">Up and running in 60 seconds</h2>
+    <p class="section-desc reveal reveal-delay-2" style="margin:0 auto">
+      Install the binary. Initialize your project. Import your .env.
+      Your existing workflow doesn't change — it just gets encrypted.
+    </p>
+    <div class="quickstart-block reveal reveal-delay-3">
+      <div class="quickstart-header">
+        <span>Terminal</span>
+        <button class="copy-btn" id="copy-btn" onclick="copyQuickstart()">Copy</button>
+      </div>
+      <div class="quickstart-code">
+        <div><span class="ln">1</span><span class="comment"># Install</span></div>
+        <div><span class="ln">2</span><span class="t-prompt">$</span> cargo install zenv</div>
+        <div><span class="ln">3</span>&nbsp;</div>
+        <div><span class="ln">4</span><span class="comment"># Set up your project</span></div>
+        <div><span class="ln">5</span><span class="t-prompt">$</span> <span class="t-cmd">cd</span> your-project</div>
+        <div><span class="ln">6</span><span class="t-prompt">$</span> zenv <span class="t-arg">init</span></div>
+        <div><span class="ln">7</span><span class="t-prompt">$</span> zenv <span class="t-arg">vault import</span> <span class="t-flag">.env</span></div>
+        <div><span class="ln">8</span>&nbsp;</div>
+        <div><span class="ln">9</span><span class="comment"># Run with secrets injected</span></div>
+        <div><span class="ln">10</span><span class="t-prompt">$</span> zenv <span class="t-arg">run</span> <span class="t-value">--</span> npm start</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- CTA -->
+<section class="cta-section">
+  <div class="container">
+    <h2 class="cta-title reveal">Stop leaking secrets.<br>Start using <span class="accent">zenv</span>.</h2>
+    <p class="cta-sub reveal reveal-delay-1">Open source. MIT licensed. Built with Rust.</p>
+    <div class="reveal reveal-delay-2">
+      <div class="cta-cmd" onclick="copyInstall(this)">
+        <span class="dollar">$</span> cargo install zenv
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- Footer -->
+<footer>
+  <div class="container">
+    <div class="footer-left">
+      <span class="footer-logo">zenv</span>
+      <span class="footer-sep">|</span>
+      <span class="footer-text">MIT License</span>
+      <span class="footer-sep">|</span>
+      <span class="footer-badge">
+        <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M23.687 11.709l-10.313-10.014c-.382-.382-1.006-.382-1.388 0l-2.147 2.147 2.717 2.718c.631-.221 1.354-.078 1.855.422.504.504.646 1.233.42 1.867l2.618 2.618c.634-.225 1.363-.083 1.867.42.703.703.703 1.843 0 2.546-.703.703-1.843.703-2.546 0-.528-.528-.657-1.302-.393-1.944l-2.44-2.44v6.424c.17.085.327.196.466.336.703.703.703 1.843 0 2.546-.703.703-1.843.703-2.546 0-.703-.703-.703-1.843 0-2.546.174-.174.372-.305.582-.392v-6.487c-.21-.087-.407-.218-.582-.392-.533-.533-.659-1.316-.384-1.96l-2.68-2.68-7.073 7.073c-.382.382-.382 1.006 0 1.388l10.313 10.014c.382.382 1.006.382 1.388 0l10.265-10.265c.382-.382.382-1.006 0-1.388z"/></svg>
+        GitHub
+      </span>
+    </div>
+    <div class="footer-right">
+      <span class="footer-badge">
+        <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M21.89 1.95a1.5 1.5 0 0 0-.83-.55 1.48 1.48 0 0 0-1 .09L3.1 10.68a1.5 1.5 0 0 0-.1 2.63l4.14 2.3 1.53 5a1.49 1.49 0 0 0 .93 1 1.5 1.5 0 0 0 1.32-.18l2.6-1.84 4.06 2.26a1.49 1.49 0 0 0 .7.17 1.52 1.52 0 0 0 .66-.15 1.49 1.49 0 0 0 .8-1.1l2.87-17.62a1.5 1.5 0 0 0-.72-1.2Z"/></svg>
+        Built with Rust
+      </span>
+    </div>
+  </div>
+</footer>
+
+<script>
+// ── Scroll Reveal ──────────────────────────────
+const observer = new IntersectionObserver((entries) => {
+  entries.forEach(entry => {
+    if (entry.isIntersecting) {
+      entry.target.classList.add('visible');
+    }
+  });
+}, { threshold: 0.05, rootMargin: '50px 0px -20px 0px' });
+
+document.querySelectorAll('.reveal').forEach(el => {
+  // Immediately reveal elements already in viewport on load
+  const rect = el.getBoundingClientRect();
+  if (rect.top < window.innerHeight && rect.bottom > 0) {
+    el.classList.add('visible');
+  }
+  observer.observe(el);
+});
+
+// ── Terminal Animation ─────────────────────────
+let terminalStarted = false;
+const terminalObserver = new IntersectionObserver((entries) => {
+  entries.forEach(entry => {
+    if (entry.isIntersecting && !terminalStarted) {
+      terminalStarted = true;
+      animateTerminal();
+    }
+  });
+}, { threshold: 0.3 });
+
+const terminalEl = document.getElementById('terminal-demo');
+if (terminalEl) terminalObserver.observe(terminalEl);
+
+function animateTerminal() {
+  const lines = document.querySelectorAll('#terminal-lines .line');
+  let totalDelay = 300;
+  lines.forEach((line) => {
+    const lineDelay = parseInt(line.dataset.delay) || 400;
+    totalDelay += lineDelay;
+    setTimeout(() => {
+      line.classList.add('visible');
+    }, totalDelay);
+  });
+}
+
+// ── Copy Quickstart ────────────────────────────
+function copyQuickstart() {
+  const text = `cargo install zenv
+cd your-project
+zenv init
+zenv vault import .env
+zenv run -- npm start`;
+  navigator.clipboard.writeText(text).then(() => {
+    const btn = document.getElementById('copy-btn');
+    btn.textContent = 'Copied!';
+    btn.classList.add('copied');
+    setTimeout(() => {
+      btn.textContent = 'Copy';
+      btn.classList.remove('copied');
+    }, 2000);
+  });
+}
+
+function copyInstall(el) {
+  navigator.clipboard.writeText('cargo install zenv').then(() => {
+    const original = el.innerHTML;
+    el.innerHTML = '<span class="dollar">$</span> Copied!';
+    setTimeout(() => { el.innerHTML = original; }, 1500);
+  });
+}
+
+// ── Smooth scroll for anchor links ─────────────
+document.querySelectorAll('a[href^="#"]').forEach(anchor => {
+  anchor.addEventListener('click', function(e) {
+    e.preventDefault();
+    const target = document.querySelector(this.getAttribute('href'));
+    if (target) target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  });
+});
+</script>
+</body>
+</html>
